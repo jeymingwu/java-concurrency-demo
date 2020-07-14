@@ -1,4 +1,4 @@
-# java-concurrentcy-demo
+# java-concurrency-demo
 Java并发训练Demo
 
 ## 并发
@@ -82,8 +82,8 @@ class MyThread extend Thread {
 -  **被终止的线程**:
     - run 方法正常退出而自然死亡；
     - 一个没有被捕捉的异常终止了run方法二意外死亡；
-   
-![thread-status](./src/main/resources/pic/thread-status.png) 
+    
+![thread-status](./src/main/resources/pic/thread-status.png){:height="50%" width="50%"}
 
 ### 线程属性
 +  **线程优先级**：
@@ -111,6 +111,106 @@ class MyThread extend Thread {
                 +  否则，若Thread.getDefaultExceptionHandler方法返回一个非空处理器，则调用该处理器；
                 +  否则，如果Throwable是ThreadDeath的一个实例，什么不做；
                 +  否则，线程名字以及Throwable的栈轨迹被输出到System.err上；
+
+### 同步
+
++  竞争条件：两个或两个以上线程需要共享对同一数据的存取；  
++  同步的意义：避免多线程引起的对共享数据的讹误；
++  [竞争条件的一个例子](./src/main/java/unsynch/UnsynchBankTest.java)
++  **锁对象**
+    +  synchronized关键字：自动提供一个锁以及相关的“条件”；（隐式）
+    +  ReentrantLock类：一个可以用来保存临界区的可重入锁；（可重入锁：lock-unlock相对应，锁可叠加）（显式）
+```
+// 锁确保任何时刻只有一个线程进入临界区，保护代码片段
+Lock myLock = new ReentrantLock();
+myLock.lock(); // 当一个线程封锁了锁对象，其他任何线程都无法通过lock语句；其他线程调用lock时被阻塞，直至其他线程释放锁对象；
+try {
+
+} finally {
+    myLock.unlock();
+}
+```
++  **[条件对象（条件变量）](./src/main/java/synch/Bank.java)**：管理那些已获得锁却需要某一条件满足后才执行的线程；（高度的锁定控制，大多数情况下并不需要这样的控制）
+    +  一个锁对象可以有一个或多个相关的条件对象；
+    +  Condition xCondition = myLock.newCondition()方法获取一个条件对象；习惯上条件对象命名反映其表达的条件意义；
+    +  若某个条件不满足，则调用xCondition.await()方法阻塞该线程，并放弃锁；
+    +  等待获取锁和调用await()方法的线程的区别：
+        1.  线程调用await()方法，该线程进入该条件等待集；
+        2.  当锁可用时，该线程**不能马上解除阻塞（区别）**；
+        3.  直至另一个线程调用同一条件上的**signalAll()方法**为止（重新激活因为这一条件而等待的所有线程），该线程由**阻塞状态**转至**可运行状态**；
+            +  另一个方法：signal()是**随机解除**等待及中某个线程的阻塞状态，比解除所有线程的阻塞更有效，但存在风险，易出现死锁；
+        4.  当调度器再次激活该线程，一旦锁成为可用的，那么该线程将从await()调用返回，从被阻塞的地方继续执行；
+        5.  若无其他线程重新激活等待的线程，那么等待的线程将永远不再运行，导致出现死锁现象；
+
++  **synchronized关键字**（嵌入Java语言内部的机制）
+    +  Java中每个对象都有一个内部锁；若方法使用synchronized关键字声明，那么对象的锁将保护整个方法；
+    +  内部对象锁只有一个相关条件；
+        +  wait()：添加一个线程到等待集中；
+        +  notifyAll()/notify()：解除等待线程的阻塞状态；
+    +  静态方法声明为synchronized也是合法的；
+    +  内部锁和条件存在的局限：
+        +  不能中断一个正在试图获得锁的线程；
+        +  试图获得锁是不能设定超时；
+        +  每个锁仅有单一的条件，可能是不够的；
+        
++  Lock/Condition和synchronized使用建议：
+    1.  两者均不使用；在许多情况下使用java.util.concurrent包中的一种机制，它会为你处理所有加锁；
+    2.  synchronized关键字适合，尽量使用它，可减少编写的代码数量，减少出错几率；
+    3.  若需要Lock/Condition结构提供的独有时，才使用它；
     
++  同步阻塞
+    +  形式：synchronized(obj) {}
+    +  客户端锁定：使用一个对象的锁来实现额外的原子操作；  
+```
+public synchronized void method() {}
+// 等价于
+public void method() {
+    this.intrinsicLock.lock();
+    try {
+        // method body
+    } finally {
+        this.intrinsicLock.unLock();
+    }
+}
+
+```
++  监视器概念：不需考虑如何加锁就可以保证多线程的安全性；
+    +  监视器特性：
+        +  监视器只包含私有域的类；
+        +  每个监视器类的对象有一个相关的锁；
+        +  使用该锁对所有方法进行加锁；
+        +  该锁可以有任意多个相关条件；
+        
++  Volatile域：为实例域的同步访问提供一种免锁机制；（但Volatile变量不能提供原子性，不能保证读取、翻转和写入不被中断）
++  final 变量
++  原子性：
+    +  若对共享变量仅进行赋值，那么可以将这共享变量声明为volatile;
+    +  java.util.concurrent.atomic包中有很多类使用了高效的机器级指令（而不是锁）来保证其他操作的原子性；
+        +  AtomicInteger类：
+            +  incrementAndGet: 以原子的方式自增
+            +  decrementAndGet：以原子的方式自减
+    
+    ![concurrent-atomic](./src/main/resources/pic/concurrent-atomic.png)
+    
++  死锁
++  线程局部变量：
+    +  ThreadLocal辅助类为各个线程提供各自的实例，避免共享变量的风险；
+    
+```
+// 实例一
+public static final SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
+// 若多个线程都执行, 结果可能很混乱；并发访问可能破坏dateFormat使用的内部数据结构，若使用同步的话开销很大
+String dateStamp = dateFormat.format(new Date());
+
+// 为每个线程构建实例
+public static final ThreadLocal<SimpleDateFormat> dateFormat 
+                       = ThreadLocal.withInitial(() -> new SimpleDateFormat("yyyy-MM-dd"));
+String dateStamp = dateFormat.get().format(new Date());
+
+// 实例二
+// 生成随机数
+int random = ThreadLocalRandom.current().nextInt(upperBound);
+```
+  
 ### [Fork-Join框架](./src/main/java/forkJoin/ForkJoinDemo.java)
 
