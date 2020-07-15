@@ -288,6 +288,104 @@ int random = ThreadLocalRandom.current().nextInt(upperBound);
         +  传输一个值，或者尝试在超时时间内传输这个值，这个调用将阻塞，直到另一个线程将元素删除；
     +  LinkedTransferQueue: 实现了TransferQueue接口；
 
+### 线程安全的集合
++  可通过锁来保护共享数据结构；
++  java.util.concurrent包中的高效的映射、集和队列：
+    +  ConcurrentHashMap：可被多线程安全访问的散列映射表；（可指定初始化容量、负载因子和并发写者线程的估计数）
+    +  ConcurrentSkipListMap：可被多线程安全访问的有序的映射表；
+    +  ConcurrentSkipListSet：可被多线程安全访问的有序集；
+    +  ConcurrentLinkedQueue：可被多线程安全访问的无边界非阻塞的队列；
++  弱一致性迭代器：不一定反映出被构造之后的所有修改，发生改变也不会抛出ConcurrentModificationException异常(区别);
++  并发散列映射表（ConcurrentHashMap）：
+    +  可高效地支持大量的读者和一定数量的写者（默认情况下有16个写者线程同时执行，多于16则其他线程暂时被阻塞）；
+    +  将相同散列码的所有条目放在同一个“桶”中，并发散列映射将桶组织为**树**，而不是列表，键类型实现了Comparable；
++  映射条目的原子更新
+```
+// 示例：统计单词出现的次数
+// 线程不安全
+Long oldValue = map.get(word);
+Long newValue = oldValue == null ? 1 : oldValue + 1;
+map.put(word, newValue);
+
+// 传统做法：使用replace操作：以原子方式用新值替换原值（前提条件是没有其他线程把原值替换为其他值）
+do {
+    oldValue = map.get(word);
+    newValue = oldValue == null ? 1 : oldValue + 1;
+} while(!map.replace(word, oldValue, newValue);
+
+// 可使用ConcurrentHashMap<String, AtomicLong>
+// 或使用 ConcurrentHashMap<String, LongAdder>
+// putIfAbsent:返回映射的值（可能是原来的值，或者是新设置的值）
+map.putIfAbsent(word, new LongAdder()); // 确保longAdder可以完成原子自增
+word.get(word).increment();
+
+// Java SE8新特性
+map.compute(word, (k, v) -> v == null ? 1 : v + 1);
+
+// computeIfPresent和computeIfAbsent，分别在已经有原值的情况下计算新值或者没有原值的情况下计算新值；
+map.computeIfAbsent(word, k -> new LongAdder()).increment();
+
+// 首次加键需特殊处理-merge：有参数表示键不存在时使用初始值
+map.merge(word, 1L, (existingValue, newValue) -> existingValue + newValue);
+// 等效
+map.merge(word, 1L, Long::sum);
+```
+
++  对并发散列映射的批操作
+    +  批操作会遍历映射，处理遍历过程中找到的元素；
+        +  散列映射不被修改：无需冻结当前映射的快照；
+        +  被修改： 把结果当作映射状态的近似；
+    +  三种操作：
+        +  搜索（search）：为每个键或值提供一个函数，直至函数生成一个非null的结果；
+            + U searchKeys(long threshold, BiFunction<? super K, ? extents U> f);
+            + U searchValues(long threshold, BiFunction<? super K, ? extents U> f);
+            + U search(long threshold, BiFunction<? super K, ? extents U> f);
+            + U searchEntries(long threshold, BiFunction<? super K, ? extents U> f);
+        +  归约（reduce）：组合所有键或值；
+        +  foreach：为所有键和值提供一个函数；
+    +  每个操作都有4个版本：
+        +  operationKeys：处理键；
+        +  operationValues：处理值；
+        +  operation：处理键和值；
+        +  operationEntries：处理Map.Entry对象；
+        +  各个操作均需要指定一个**参数化阈值**，映射包含元素多于这个阈值，就并行完成批操作；
+        
+```
+// 找出第一个出现次数超过1000次的单词
+String result = map.search(threshold, (k, v) -> v > 1000 ? k : null);
+
+// forEach方法有两种形式
+// 1.只为各个映射条目提供一个消费者函数
+map.forEach(threshold, (k, v) -> System.out.println(k + " -> " + v));
+// 2. 提供一个消费者函数和一个转换器函数
+map.forEach(threshold, 
+    (k, v) -> k + " ->" + v,  // Transformer
+    System.out::println); // Consumer
+//  转换器也可当作一个过滤器
+map.forEach(threshold, 
+    (k, v) -> v > 1000 ? k + " ->" + v : null,  // Filter and Transformer
+    System.out::println); // Consumer
+
+// reduce操作用一个累加函数组合其输入；若映射为空，则所有条目被过滤掉，仅返回null；若只有一个元素，则返回其转换结果，不会应用到累加器；
+Long sum = map.reduceValues(threshold, Long::sum); // 计算所有值的总和
+// 可提供一个转换器函数
+Long maxlength = map.reduceKeys(threshold, String::length, Integer::max); //计算最长的键长度
+// 转换器也可以作一个过滤器
+Long count = map.reduceValues(threshold, v -> v > 1000 ? 1L : null, Long::sum); // 统计多少条目的值大于1000
+```
+
++  并发集视图
+    +  线程安全的集：ConcurrentHashSet类（不存在）——> 使用ConcurrentHashMap代替（包含假值） ——> 得到一个映射而不是集，不能应用Set接口的操作；
+    +  newKeySet方法：生成一个Set<K>，实际上是ConcurrentHashMap<K, Boolean>的一个包装器；
+    +  若存在一个映射：
+        +  keySet方法：生成这个映射的键集；（该集可变）
+            +  若删除键集的元素，那么在映射中这个键以及值也会删除；
+            +  不能往键集增加元素，因为没有对应的值可以增加；
++  写数组拷贝
+
++  并行数据算法
+
++  较早的线程安全集合
 
 ### [Fork-Join框架](./src/main/java/forkJoin/ForkJoinDemo.java)
 
