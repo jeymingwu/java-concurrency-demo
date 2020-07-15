@@ -1,6 +1,8 @@
 # java-concurrency-demo
 Java并发训练Demo
 
+[toc]
+
 ## 并发
 - 多任务：在同一时刻运行多个程序的能力；
 - 进程：独享变量，系统资源分配和调度的基本单位；
@@ -141,6 +143,10 @@ try {
             +  另一个方法：signal()是**随机解除**等待及中某个线程的阻塞状态，比解除所有线程的阻塞更有效，但存在风险，易出现死锁；
         4.  当调度器再次激活该线程，一旦锁成为可用的，那么该线程将从await()调用返回，从被阻塞的地方继续执行；
         5.  若无其他线程重新激活等待的线程，那么等待的线程将永远不再运行，导致出现死锁现象；
+    +  await()方法返回：
+        +  被另一个线程调用 signalAll / signal 激活；
+        +  超时时限已到；【等待条件也可以设置一个超时参数：myCondition.await(100, TimeUnit.MILLISECONDS);】
+        +  线程被中断；（await方法将抛出一个InterruptedException异常）（若希望此时线程继续等待，可用awaitUninterruptibly()方法代替await）
 
 +  **synchronized关键字**（嵌入Java语言内部的机制）
     +  Java中每个对象都有一个内部锁；若方法使用synchronized关键字声明，那么对象的锁将保护整个方法；
@@ -211,6 +217,35 @@ String dateStamp = dateFormat.get().format(new Date());
 // 生成随机数
 int random = ThreadLocalRandom.current().nextInt(upperBound);
 ```
-  
++  锁测试与超时
+    +  当线程调用lock方法获取被另一个线程持有的锁，该线程很可能发生阻塞；->谨慎申请锁：tryLock()方法试图申请一个锁；
+        +  tryLock()：视图申请锁；（此方法会抢夺可用锁）
+        +  tryLock(x, TimeUnit.x)：使用超时参数；
+            +  TimeUnit 枚举类型
+                +  SECONDS
+                +  MILLISECONDS
+                +  MICROSECONDS
+                +  NANOSECONDS
+        +  lockInterruptibly：tryLock无限超时方法
+    +  lock()方法不能被中断;
+        +  若线程在tryLock时被中断，那么中断线程在获得锁之前一直处于阻塞状态；（若出现死锁，lock方法无法终止）
+        +  若线程调用带超时参数的tryLock获取锁，在等待期间被中断，那么将抛出InterruptedException异常；
++  读/写锁
+    +  java.util.concurrent.locks包中定义两个锁类：
+        +  ReentrantLock类
+        +  ReentrantReadWriteLock类（适用于多读取少修改）
+            +  使用读写锁的步骤：
+                1.  构建一个ReentrantReadWriteLock对象： ReentrantReadWriteLock rw1 = new ReentrantReadWriteLock();
+                2.  抽取读锁和写锁：
+                    +  读锁：Lock readLock = rw1.readLock();
+                    +  写锁：Lock writeLock = rw1.writeLock();
+                3.  对所有的获取方法加读锁：readLock.lock(); try{}finally{readLock.unlock();}
+                4.  对所有的修改方法加写锁：writeLock.lock(); try{}finally{writeLock.unlock();}    
++  弃用stop和suspend方法原因：  
+    +  stop：终止一个线程；->不安全
+    +  suspend：阻塞一个线程直至另一个线程调用resume()；->易导致死锁
+    +  共同点：试图控制线程的行为； 
+
+
 ### [Fork-Join框架](./src/main/java/forkJoin/ForkJoinDemo.java)
 
