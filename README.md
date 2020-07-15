@@ -246,6 +246,48 @@ int random = ThreadLocalRandom.current().nextInt(upperBound);
     +  suspend：阻塞一个线程直至另一个线程调用resume()；->易导致死锁
     +  共同点：试图控制线程的行为； 
 
+### 阻塞队列
++  线程问题，可以使用一个或多个**队列**以优雅且安全的方式将其形式化；（安全传输数据）（不需要同步）
++  生产者线程向队列插入元素，消费者线程则取出；
++  阻塞队列方法：
+    +  add：添加一个元素；若队满，则抛出IllegalStateException异常；
+    +  element：返回队列的头元素；若队列空，则抛出NoSuchElementException异常；
+    +  offer：添加一个元素并返回true；若队满，则返回false；
+    +  peek：返回队列的头元素；若队空，则返回null；
+    +  poll：移除并返回队列头元素；若队空，则返回null；
+    +  put：添加一个元素；若队满则阻塞；
+    +  remove：移除并返回头元素；若队空则抛出NoSuchElementException异常；
+    +  take：移除并返回头元素；若队空则阻塞；
+    
+    +  总结：
+        +  按功能划分：
+            +  添加：
+                +  add：队满抛IllegalStateException异常
+                +  offer：队满返回false
+                +  put：队满阻塞
+            +  返回队列头元素
+                +  element：队空抛NoSuchElementException异常
+                +  peek：队空返回null
+            +  移除并返回队列头元素
+                +  remove：队空抛NoSuchElementException异常
+                +  poll：队空返回null
+                +  take：队空阻塞
+        +  按响应方式划分
+            +  将队列作为线程管理工具：put/take
+            +  向满队列添加或向空队列移出元素(抛出异常)：add/remove/element
+            +  提示错误：offer/poll/peek(可带超时参数)
++  java.util.concurrent包中提供的阻塞队列：
+    +  LinkedBlockingQueue: 容量没有上边界，但可指定最大容量；
+    +  LinkedBlockingDeque: 双端版本；
+    +  [ArrayBlockingQueue](./src/main/java/blockingQueue/BlockingQueueTest.java): 构造时需指定容量，并且有一个可选参数来指定是否需要公平性（等待时间长的线程优先处理，但降低性能）；
+    +  PriorityBlockingQueue: 带优先级的队列；没有容量上限；
+    +  DelayQueue: 实现Delayed接口的对象；包含Delayed元素的无界阻塞时间有限的阻塞队列；延时已超过时间的元素可以从队列中移除；
+    +  TransferQueue接口: 允许生产者线程等待，直到消费者可以接收元素；
+        +  void transfer(E element);
+        +  boolean tryTransfer(E element, long time, TimeUnit unit);
+        +  传输一个值，或者尝试在超时时间内传输这个值，这个调用将阻塞，直到另一个线程将元素删除；
+    +  LinkedTransferQueue: 实现了TransferQueue接口；
+
 
 ### [Fork-Join框架](./src/main/java/forkJoin/ForkJoinDemo.java)
 
