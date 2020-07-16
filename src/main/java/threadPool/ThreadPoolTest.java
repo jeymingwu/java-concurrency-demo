@@ -11,7 +11,7 @@ import java.util.concurrent.*;
  * @author jeymingwu
  * @date 2020/7/17 0:16
  */
-public class TreadPoolTest {
+public class ThreadPoolTest {
 
     public static void main(String[] args) {
         try (Scanner in = new Scanner(System.in)){
