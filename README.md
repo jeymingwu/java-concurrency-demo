@@ -430,5 +430,64 @@ public interface Future<V> {
 }
 ```
 
-### [Fork-Join框架](./src/main/java/forkJoin/ForkJoinDemo.java)
+### 执行器
++  线程池：
+    +  构建新线程有一定代价，因为涉及到操作系统的交互；若需大量切生命期很短的线程，应使用线程池；——>提高执行任务的效率，可减少并发线程的数目；
+    +  一个线程池有许多准备运行的空闲线程；
+    +  执行器Executors：有许多静态工厂来构建线程池；
+        +  newCachedThreadPool：必要时创建新线程；空闲线程被保留60秒；
+        
+        +  newFixedThreadPool：该池包含固定数量的线程；空闲线程被一直保留；
+            +  若提交的任务数 > 空闲的线程数：将得不到服务的任务放至到队列中，当其他任务完成后再运行；
+            
+        +  newSingleThreadExecutor：只有一个线程，线程执行顺序为任务提交的顺序；
+        
+        +  newScheduledThreadPool：用于预定执行而构建的固定线程，代替java.util.Timer;
+        
+        +  newSingleThreadScheduledExecutor：用于预定执行而构建的单线程池；
+        
+    +  结束线程池：
+        + shutdown：启动该池的关闭序列；被执行的执行器不再接受新任务，直至所有任务完成后，线程池的线程死亡；
+        + shutdownNow：该池取消尚未开始的所有任务和试图中断正在运行的线程；
+        
+    +  线程池使用步骤：[demo](./src/main/java/threadPool/ThreadPoolTest.java)
+        1.  调用 Executors 类中静态的方法：newCachedThreadPool 或 newFixedThreadPool;
+        2.  调用 submit 提交 Runnable 或 Callable 对象；
+        3.  若要取消一个任务，或如果提交 Callable 对象，需要保存好提交返回的 Future 对象；
+        4.  当不再提交任何任务的时候，调用 shutdown ；
+    
+```
+//  newCachedThreadPool、newFixedThreadPool、newSingleThreadPool
+//  返回实现了ExecutorService接口的ThreadPoolExecutor类对象
+
+//  将Runnnabe或Callable对象提交给ExecutorService,Future对象用于查询该任务的状态；
+Future<?> submit(Runnable task); // 完成后调用get只返回null
+Futrue<?> submit(Runnable task, T result); // 完成后调用get返回指定的result对象
+Futute<?> submit(Callable<T> task);
+```
++  预定执行
+    +  ScheduledExecutorService 接口为预定执行或重复执行任务而设计；使用线程机制的java.util.Timer的泛化；
+    +  Executors 执行器类
+        +  返回实现了 ScheduledExecutorService 接口的对象；
+        
+        +  newScheduledThreadPool：包含固定数量的线程；
+        
+        +  newSingleThreadScheduledExecutor：该执行器中在单独一个线程中调度任务；
+        
+```
+// 预定在指定时间之后执行任务
+ScheduledFuture<V> schedule(Callable<V> task, long time, TimeUnit unit);
+ScheduledFuture<?> schedule(Runnable task, long time, TimeUnit unit);
+
+// 预定在初始的延迟结束后，周期性地运行给定的任务，周期长度为 period
+ScheduledFuture<?> scheduleAtFixedRate(Runnable task, long initialDelay, long period, TimeUnit time);
+
+// 预定在初始的延迟结束后，周期性地运行给定的任务，在一次调用完成和下一次调用开始之间有长度为 delay 的延迟
+ScheduledFuture<?> scheduleWithFixedDelay(Runnable task, long initialDelay, long delay, TimeUnit time);
+```
+
++  控制任务组
+
++  Fork-Join框架 [demo](./src/main/java/forkJoin/ForkJoinDemo.java)
+
 
