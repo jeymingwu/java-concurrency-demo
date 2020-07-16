@@ -279,7 +279,7 @@ int random = ThreadLocalRandom.current().nextInt(upperBound);
 +  java.util.concurrent包中提供的阻塞队列：
     +  LinkedBlockingQueue: 容量没有上边界，但可指定最大容量；
     +  LinkedBlockingDeque: 双端版本；
-    +  [ArrayBlockingQueue](./src/main/java/blockingQueue/BlockingQueueTest.java): 构造时需指定容量，并且有一个可选参数来指定是否需要公平性（等待时间长的线程优先处理，但降低性能）；
+    +  ArrayBlockingQueue: 构造时需指定容量，并且有一个可选参数来指定是否需要公平性（等待时间长的线程优先处理，但降低性能）；[demo](./src/main/java/blockingQueue/BlockingQueueTest.java)
     +  PriorityBlockingQueue: 带优先级的队列；没有容量上限；
     +  DelayQueue: 实现Delayed接口的对象；包含Delayed元素的无界阻塞时间有限的阻塞队列；延时已超过时间的元素可以从队列中移除；
     +  TransferQueue接口: 允许生产者线程等待，直到消费者可以接收元素；
@@ -382,10 +382,53 @@ Long count = map.reduceValues(threshold, v -> v > 1000 ? 1L : null, Long::sum); 
             +  若删除键集的元素，那么在映射中这个键以及值也会删除；
             +  不能往键集增加元素，因为没有对应的值可以增加；
 +  写数组拷贝
+    +  CopyOnWriteArrayList
+    +  CopyInWriteArraySet
+        +  线程安全集合，所有修改线程对底层数组进行复制；
 
 +  并行数据算法
+    +  Arrays类提供大量并行化操作：
+        +  Arrays.parallelSort()方法可以对一个基本类型值或对象的数组排序；
+            +  可提供一个Comparator：Arrays.parallelSort(words, Comparator.comparing(String::length));
+            +  可提供一个边界范围：Arrays.parallelSort(words.length / 2, words.length);
+        +  parallelSetAll()方法：由一个函数计算得到的值填充一个数组；
+        +  parallelPrefix()方法：用对应一个给定结合操作的前缀的累加结果替换各个数组元素；
 
 +  较早的线程安全集合
+    +  Vector: 早期线程安全动态数组的实现；——>现被ArrayList类代替（但不是线程安全）——>可使用同步包装器使线程安全；
+        +  List<E> synchArrayList = Collections.synchronizedList(new ArrayList<E>());
+    +  Hashtable: 早期线程安全散列表的实现；——>现被HashMap类代替（但不是线程安全）——>可使用同步包装器使线程安全；
+        +  Map<K, V> synchHashMap = Collections.synchronizedMap(new HashMap<K, V>());
+    +  使用同步包装器，使集合的方法使用锁加以保护，提供了线程安全的访问；
+    +  当另一个线程进行修改时要对集合进行迭代，任然需要“客户端”锁定：
+    +  若在迭代的过程中，别的线程修改集合，那么迭代器会失效，抛出ConcurrentModificationException异常；
+```
+synchronized(syschHashMap) {
+    Iterator<K> iter = synchHashMap.keySet().iterator();
+    while (iter.hasNest()) {
+        // ……
+    }
+}
+```
+
+### Callable与Future
++  Runnable：封装一个异步运行的任务，没有参数和返回值；
++  Callable：与Runnable相似，但有返回值；Callable 接口是一个参数化类型，只有一个方法call;
++  Future：保存异步计算结构；
+    +  Future接口
+    +  FutureTask包装器：可将Callable转换成Future和Runnable;[demo](./src/main/java/future/FutureTest.java)
+
+```java
+// Future 接口
+public interface Future<V> {
+    // 若运行计算的线程被中断，那么将抛出InterruptedException异常；
+    V get() throws Exception; // 调用被阻塞，直至计算完成；
+    V get(long timeout, TimeUnit unit) throws Exception; // 计算完成之前调用超时，抛出TimeoutException异常；
+    void cancel(boolean mayInterrupt);
+    boolean isCancelled();
+    boolean isDone();
+}
+```
 
 ### [Fork-Join框架](./src/main/java/forkJoin/ForkJoinDemo.java)
 
