@@ -433,6 +433,7 @@ public interface Future<V> {
 ### 执行器
 +  线程池：
     +  构建新线程有一定代价，因为涉及到操作系统的交互；若需大量切生命期很短的线程，应使用线程池；——>提高执行任务的效率，可减少并发线程的数目；
+    +  控制一组相关任务；
     +  一个线程池有许多准备运行的空闲线程；
     +  执行器Executors：有许多静态工厂来构建线程池；
         +  newCachedThreadPool：必要时创建新线程；空闲线程被保留60秒；
@@ -487,7 +488,34 @@ ScheduledFuture<?> scheduleWithFixedDelay(Runnable task, long initialDelay, long
 ```
 
 +  控制任务组
+    +  shutdownNow：取消所有任务；
+    +  invokeAny：提交所有对象到一个 Callable 对象的集合中，并返回**某个已经完成的任务结果**；（无法确定返回哪个任务的结果） 
+    +  invokeAll：提交所有对象到一个 Callable 对象的集合中，并返回一个 Future 对象的列表，表示**所有任务的解决方案**； 
+        +  若第一个任务花费大量时间，则可能不得不进行等待；
+        +  将结果可获得的顺序保存起来更有实际意义；可用 ExecutorCompletionService 来进行排序；
+    +  ExecutorCompletionService(Executor e)：构建一个执行器完成服务来收集给定执行器的结果；
+        +  Future<V> submit(Callable<V> task); 提交一个任务给底层执行器；
+        +  Future<V> submit(Runnable task, V result);
+        +  Future<V> take(); 移除下一个已完成的结果，若没有任何已完成的结果可用则阻塞；
+        +  Future<V> poll(); 移除下一个已完成的结果，如果没有任何已完成结果可用则返回null；
+        +  Future<V> poll(long time, TimeUnit unit);  
+```
+ExecutorCompletionService<T> service = new ExecutorCompletionService<>(executor);
+for (Callable<T> task : tasks) {
+    service.submit(task);
+}
+for (int i = 0; i < tasks.size(); ++i) {
+    processFurther(service.take().get());
+}
+``` 
 
-+  Fork-Join框架 [demo](./src/main/java/forkJoin/ForkJoinDemo.java)
++  Fork-Join 框架 [demo](./src/main/java/forkJoin/ForkJoinDemo.java)
+    +  使用一种有效的智能方法来平衡可用线程的工作负载；
+    +  RecursiveTask<V>：计算会生成一个类型为T的结果；
+    +  RecursiveAction：不生成任何结果
+    
++  可完成 Future
+    +  处理非阻塞调用的传统方法是事件处理器，需为任务完成之后出现的动作注册一个处理器；
+
 
 
